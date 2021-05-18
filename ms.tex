@@ -52,6 +52,11 @@
  \documentclass[twocolumn,floatfix,tighten]{aastex62}
 %\documentclass[twocolumn,floatfix,tighten]{aastex}
 
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{bm}
+
 \bibliographystyle{aasjournal}
 
 % Units
@@ -133,7 +138,30 @@
 \author[0000-0003-1809-6920]{Kyle B. Westfall}
 \affiliation{University of California Observatories, University of California, Santa Cruz, 1156 High St., Santa Cruz, CA 95064, USA}
 
-\author{et al.}
+\author{Niv Drory}
+\affiliation{ McDonald Observatory, University of Texas at Austin, 1 University Station, Austin, TX 78712, USA}
+
+\author{Matthew A. Bershady}
+\affiliation{Department of Astronomy, University of Wisconsin-Madison, 475N. Charter St., Madison WI 53703, USA}
+
+\author{Kevin Bundy}
+\affiliation{Department of Astronomy and Astrophysics, University of California, 1156 High Street, Santa Cruz, CA 95064, USA}
+\affiliation{University of California Observatories, University of California, 1156 High Street, Santa Cruz, CA 95064, USA}
+
+\author{Stephanie Campbell}
+\affiliation{School of Physics and Astronomy, University of St. Andrews, North Haugh, St. Andrews KY16 9SS, UK}
+
+\author{Anne-Marie Weijmans}
+\affiliation{School of Physics and Astronomy, University of St. Andrews, North Haugh, St. Andrews KY16 9SS, UK}
+
+\author{Karen Masters}
+\affil{Department of Physics and Astronomy, Haverford College, 370 Lancaster Avenue, Haverford, PA 19041, USA}
+
+\author{David Stark}
+\affil{Department of Physics and Astronomy, Haverford College, 370 Lancaster Avenue, Haverford, PA 19041, USA}
+
+\author{David Law}
+\affiliation{Space Telescope Science Institute, 3700 San Martin Drive, Baltimore, MD 21218, USA}
 
 \begin{abstract}
 
@@ -184,12 +212,85 @@ software and the resulting data are made publicly available.
 \section{MaNGA Data}
 \label{sec:data}
 
+
+\subsection{Data Processing} \label{sec:clipping}
+
+We must first sanitize the velocity data from each galaxy to make it more suitable for model fitting. Though the MaNGA DAP masks many imperfections in the maps it extracts from the data cubes, there are still outliers in the data that inhibit our ability to produce a successful fit. 
+
+First, we mask any bins that consist of more than 10 spaxels. Such bins appear frequently on the outskirts of stellar velocity fields where the MaNGA DAP groups spaxels together to reach a sufficient S/N. However, such large bins frequently cause problems because it is difficult to define their centers properly when fitting a velocity field and models with large bins do not behave well when smeared with a PSF. 
+
+To remove spurious velocity measurements that are not tied to any real physical motion within the galaxy, we convolve a PSF over the velocity field and velocity dispersion. Doing so will average out any incorrectly extracted velocity/dispersion measurements over an observationally realistic region. We then mask any spaxels where the magnitude of the difference between the velocity and dispersion maps and their doubly-smeared counterparts is more than 50 km/s since deviations that large are likely in error.
+
+We then mask out any spaxels that have a surface brightness flux of less than $3 \times 10^{-19}$ ergs/s/cm$^2$ or an amplitude-to-noise ratio (ANR) of less than 5. These values were visually determined to best remove low-quality velocity measurements on the outskirts of galaxies that tend to have underreported errors from the DAP.
+
+Finally, we attempt to remove any regions of the velocity field that do not appear to be part of the same rotating system as the rest of the galaxy. Many MaNGA IFUs contain foreground/background sources or merging companions that have distinct velocity fields from the main target, so it would be inappropriate to fit a single rotating disk to the data. To mask these, we iteratively fit the velocity field with our simple axisymmetric model described in Section \ref{sec:axisym} and subtract the model from the data to obtain a map of the residuals. For an orderly axisymmetric velocity field well-described by this model, these residuals should be Gaussian, and any deviations from Gaussianity represent possible signatures of axisymmetry that we may want to mask. In order to preserve the genuine bisymmetric features we are attempting to model, we mask only the spaxels that differ from the mean of the residuals by more than 10 standard deviations, a value we determined removes unwanted companions but still preserves real bisymmetric features. After masking these spaxels, we again fit the axisymmetric model and remove the outliers in the residuals, repeating the process until the number of masked spaxels stabilizes.
+
+If, at the end of this process, the galaxy is left with only 5\% or less of its original number of spaxels unmasked, the velocity field is considered to be unsuitable for velocity field fitting and it is not fit. Of the full MaNGA sample, approximately 25\% of velocity fields fall into this category, so the fitting algorithm is only run on XXXX out of XXXX gas velocity fields and XXXX out of XXXX stellar velocity fields \note{update with actual numbers}.
+
 \section{Forward Modeling Approach}
 \label{sec:modeling}
 
-\subsection{Kinematic Model}
+\subsection{Axisymmetric Kinematic Model} \label{sec:axisym}
+
+\note{Kyle}
+
+\subsection{Bisymmetric Kinematic Model} \label{sec:bisym}
+To model noncircular motions in disk galaxies, we adopt a formalism based on \cite{spekkens07}. In a thin rotating disk with no out-of-plane motion, all motion may be broken down into a tangential component $V_t$ and a radial component $V_r$, or
+
+\begin{equation} \label{components}
+    V(r,\theta) = V_t(r,\theta) + V_r(r,\theta)
+\end{equation}
+
+\noindent for deprojected polar coordinates $r$ and $\theta$. These components can then be expressed as a Fourier series within the plane of the disk:
+
+\begin{equation}
+    V_t(r, \theta) = V_{0,t}(r) + \sum_{m=1}^\infty V_{m,t}(r) \cos \bigg( m \big(\theta + \phi_{m,t}(r) \big) \bigg)
+\end{equation}
+
+and
+
+\begin{equation}
+    V_r(r, \theta) = V_{0,r}(r) + \sum_{m=1}^\infty V_{m,r}(r) \cos \bigg( m \big(\theta + \phi_{m,r}(r) \big) \bigg),
+\end{equation}
+
+\noindent where the coefficients $V_{m,t}$ and $V_{m,r}$ represent the relative amplitudes of each velocity mode in either component and $\phi_{m,t}$ and $\phi_{m,r}$ represent the relative phase angles of each component in a given annulus. 
+
+However, galaxies are observed projected onto the sky plane, rotated at an inclination angle $i$ about their major axis and moving at some line-of-sight systemic velocity $V_{sys}$ towards or away from the observer. We will assume $\theta=0$ to be the major axis, the azimuth where the line-of-sight velocity is greatest away from the observer. With these adjustments, Equation \ref{components} can be adapted to express the line-of-sight velocity $V_{obs}$:
+
+\begin{equation}
+    V_{obs} = V_{sys} + \sin i \, \big(V_t(r,\theta) + V_r(r,\theta) \big).
+\end{equation}
+
+The above expression is exactly correct if we use infinite terms in the Fourier series and have infinite radial resolution in the velocity coefficients. However, when fitting a model to data, we cannot realistically compute infinitely many Fourier coefficients, so for the purposes of this paper, we will restrict ourselves only to the first- and second-order tangential components and the second-order radial components. We justify capping our analysis at the second order by noting that bars, warps, and spiral arms, are bisymmetric, meaning that modes higher than $m=2$ will mostly only fit local kinematic perturbations rather than larger dynamical features.\note{cite} We do not include a first-order radial term because a large coefficient there would violate the continuity theorem and we do not expect most galaxies to have large inflows or outflows.
+
+Within the first two orders, we make some additional simplifications. First, we restrict that the second-order components share a position angle $\phi_b$ relative to the first-order position angle, meaning that we assume the bisymmetric distortion is a single physical disturbance with both radial and tangential components. We also adopt the phase conventions of \cite{spekkens07}, imposing a $\pi/2$ phase shift to the radial component. With these simplifications, the model we adopt for the remainder of this paper is the following:
+
+\begin{multline} \label{model}
+    V(r, \theta) = V_{sys} + \sin i \, \big(V_t(r) \cos \theta - V_{2t}(r) \cos2 (\theta - \phi_b) \cos \theta \\ - V_r(r) \sin 2 (\theta - \phi_b) \sin \theta \big).
+\end{multline}
+
+When working with real on-sky data, we must first map the rectilinear on-sky coordinates of the spectroscopic observations to the deprojected polar coordinates we use in the model using the following transformations:
+
+\begin{equation}
+    r = \sqrt((x - x_c)^2 + (y - y_c)^2)
+\end{equation}
+\begin{equation}
+    \theta = \arctan\left(\frac{x \sin \phi - y \cos \phi}{\cos i\, (x \cos \phi + y \sin \phi)}\right),
+\end{equation}
+
+\noindent for $x$ and $y$ center position $x_c$ and $y_c$ and first-order position angle $\phi$. 
+
 
 \subsection{Fitting Algorithm}
+
+To fit the above model to the data appropriately, we construct a Bayesian forward model. We choose this formalism rather than a least-squares optimizer like \citep{spekkens07} because of its ability to accurately characterize multimodal posteriors and covariances between parameters.
+
+
+We then construct the prior based off of the information we already have about the galaxy. Using the results from an initial fit using our least-squares axisymmetric fitting algorithm \note{Kyle needs to describe this}, we
+
+using \texttt{dynesty} \citep{dynesty}, a Python package implementing nested sampling \citep{skilling04, skilling06} utilizing multi-ellipsoid bounds \citep{feroz09}. The algorithm for fitting is as follows.
+
+
 
 \subsection{Fit Assessments}
 
@@ -201,11 +302,13 @@ software and the resulting data are made publicly available.
 Numpy \citep{harris2020array};
 Scipy \citep{2020SciPy-NMeth}; matplotlib \citep{Hunter:2007}}
 
-\note{Add fftw and dynesty; cite any computing resources}
+\note{Add fftw}
 
 \acknowledgements
 
 We acknowledge ...
+
+We acknowledge use of the lux supercomputer at UC Santa Cruz, funded by NSF MRI grant AST 1828315.
 
 Funding for the Sloan Digital Sky Survey IV has been provided by the
 Alfred P. Sloan Foundation, the U.S. Department of Energy Office of
