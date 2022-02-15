@@ -212,6 +212,9 @@ software and the resulting data are made publicly available.
 \section{MaNGA Data}
 \label{sec:data}
 
+\subsection{MaNGA: Mapping Nearby Galaxies at Apache Point Observatory} \label{sec:manga}
+
+\note{generic manga data section}
 
 \subsection{Data Processing} \label{sec:clipping}
 
@@ -219,13 +222,13 @@ We must first sanitize the velocity data from each galaxy to make it more suitab
 
 First, we mask any bins that consist of more than 10 spaxels. Such bins appear frequently on the outskirts of stellar velocity fields where the MaNGA DAP groups spaxels together to reach a sufficient S/N. However, such large bins frequently cause problems because it is difficult to define their centers properly when fitting a velocity field and models with large bins do not behave well when smeared with a PSF. 
 
-To remove spurious velocity measurements that are not tied to any real physical motion within the galaxy, we convolve a PSF over the velocity field and velocity dispersion. Doing so will average out any incorrectly extracted velocity/dispersion measurements over an observationally realistic region. We then mask any spaxels where the magnitude of the difference between the velocity and dispersion maps and their doubly-smeared counterparts is more than 50 km/s since deviations that large are likely in error.
+The DAP also sometimes produces velocity measurements for individual spaxels that depart greatly from their expected values due to noise or incorrect fitting, resulting in spaxels that differ wildly from adjacent spaxels. To remove these spurious velocity measurements, we reconvolve the PSF over the velocity field and velocity dispersion, smearing out any features in the velocity fields that are smaller than the instrument is capable of resolving. We then mask any spaxels where the magnitude of the difference between the velocity and dispersion maps and their doubly-smeared counterparts, as any spaxels with large differences must have had unrealistically large differences with their neighbors in the original data. Through experimentation, we determined any spaxels with differences of more than 50 km/s are likely erroneous, so they are masked.
 
-We then mask out any spaxels that have a surface brightness flux of less than $3 \times 10^{-19}$ ergs/s/cm$^2$ or an amplitude-to-noise ratio (ANR) of less than 5. These values were visually determined to best remove low-quality velocity measurements on the outskirts of galaxies that tend to have underreported errors from the DAP.
+We then mask out any spaxels that have a surface brightness flux of less than $3 \times 10^{-19}$ ergs/s/cm$^2$ or an amplitude-to-noise ratio (ANR) of less than 5. These values were experimentally determined to best remove low-quality velocity measurements on the outskirts of galaxies that tend to have under-reported errors from the DAP.
 
 Finally, we attempt to remove any regions of the velocity field that do not appear to be part of the same rotating system as the rest of the galaxy. Many MaNGA IFUs contain foreground/background sources or merging companions that have distinct velocity fields from the main target, so it would be inappropriate to fit a single rotating disk to the data. To mask these, we iteratively fit the velocity field with our simple axisymmetric model described in Section \ref{sec:axisym} and subtract the model from the data to obtain a map of the residuals. For an orderly axisymmetric velocity field well-described by this model, these residuals should be Gaussian, and any deviations from Gaussianity represent possible signatures of axisymmetry that we may want to mask. In order to preserve the genuine bisymmetric features we are attempting to model, we mask only the spaxels that differ from the mean of the residuals by more than 10 standard deviations, a value we determined removes unwanted companions but still preserves real bisymmetric features. After masking these spaxels, we again fit the axisymmetric model and remove the outliers in the residuals, repeating the process until the number of masked spaxels stabilizes.
 
-If, at the end of this process, the galaxy is left with only 5\% or less of its original number of spaxels unmasked, the velocity field is considered to be unsuitable for velocity field fitting and it is not fit. Of the full MaNGA sample, approximately 25\% of velocity fields fall into this category, so the fitting algorithm is only run on XXXX out of XXXX gas velocity fields and XXXX out of XXXX stellar velocity fields \note{update with actual numbers}.
+If, at the end of this process, the galaxy is left with only 20\% or less of its original number of spaxels unmasked, the velocity field is considered to be unsuitable for velocity field fitting and it is not fit. Of the full MaNGA sample, approximately XX\% of velocity fields fall into this category, so the fitting algorithm is only run on XXXX out of XXXX gas velocity fields and XXXX out of XXXX stellar velocity fields \note{update with actual numbers}.
 
 \section{Forward Modeling Approach}
 \label{sec:modeling}
@@ -261,18 +264,20 @@ However, galaxies are observed projected onto the sky plane, rotated at an incli
     V_{obs} = V_{sys} + \sin i \, \big(V_t(r,\theta) + V_r(r,\theta) \big).
 \end{equation}
 
-The above expression is exactly correct if we use infinite terms in the Fourier series and have infinite radial resolution in the velocity coefficients. However, when fitting a model to data, we cannot realistically compute infinitely many Fourier coefficients, so for the purposes of this paper, we will restrict ourselves only to the first- and second-order tangential components and the second-order radial components. We justify capping our analysis at the second order by noting that bars, warps, and spiral arms, are bisymmetric, meaning that modes higher than $m=2$ will mostly only fit local kinematic perturbations rather than larger dynamical features.\note{cite} We do not include a first-order radial term because a large coefficient there would violate the continuity theorem and we do not expect most galaxies to have large inflows or outflows.
+The above expression is exactly correct if we use infinite terms in the Fourier series and have infinite radial resolution in the velocity coefficients. However, when fitting a model to data, we cannot realistically compute infinitely many Fourier coefficients, so for the purposes of this paper, we will restrict ourselves only to the first- and second-order tangential components and the second-order radial components. We justify capping our analysis at the second order by noting that bulk rotation and bar motion, the dominant kinematic features in galaxies, are axisymmetric and bisymmetric respectively, meaning that modes higher than $m=2$ will mostly only fit local kinematic perturbations rather than larger dynamical features.\note{cite} We do not include a first-order radial term because if that component had significant magnitude, the system would violate the continuity equation. We do not expect most galaxies to have large inflows or outflows, so this term can be safely neglected.\note{cite}
 
-Within the first two orders, we make some additional simplifications. First, we restrict that the second-order components share a position angle $\phi_b$ relative to the first-order position angle, meaning that we assume the bisymmetric distortion is a single physical disturbance with both radial and tangential components. We also adopt the phase conventions of \cite{spekkens07}, imposing a $\pi/2$ phase shift to the radial component. With these simplifications, the model we adopt for the remainder of this paper is the following:
+Within the first two orders, we make some additional simplifications. First, we restrict that the second-order components share a position angle $\phi_b$ (defined relative to North in the plane of the galaxy), meaning that we assume the bisymmetric distortion is a single physical disturbance with both radial and tangential components. We also adopt the phase conventions of \cite{spekkens07}, imposing a $\pi/2$ phase shift to the radial component. With these simplifications, the model we adopt for the remainder of this paper is the following:
 
 \begin{multline} \label{model}
-    V(r, \theta) = V_{sys} + \sin i \, \big(V_t(r) \cos \theta - V_{2t}(r) \cos2 (\theta - \phi_b) \cos \theta \\ - V_r(r) \sin 2 (\theta - \phi_b) \sin \theta \big).
+    V(r, \theta) = V_{sys} + \sin i \, \bigg(V_t(r) \cos \theta - V_{2t}(r) \cos2 (\theta - \phi_b) \cos \theta \\ - V_r(r) \sin 2 (\theta - \phi_b) \sin \theta \bigg).
 \end{multline}
 
-When working with real on-sky data, we must first map the rectilinear on-sky coordinates of the spectroscopic observations to the deprojected polar coordinates we use in the model using the following transformations:
+\noindent Since velocity dispersion is a second-order moment, it is expected to be radially symmetric \cite{binney08}. Therefore, we do not need a complex model to decompose it like we do for the velocity, instead modeling it as a single curve defined over the radius of the galaxy $\sigma(r)$.
+
+These models requires polar coordinates in the plane of the galaxy, so in order to map the rectilinear on-sky spaxel coordinates onto the projected galaxy's elliptical coordinates, we use the following transformations:
 
 \begin{equation}
-    r = \sqrt((x - x_c)^2 + (y - y_c)^2)
+    r = \sqrt{((x - x_c)^2 + (y - y_c)^2)}
 \end{equation}
 \begin{equation}
     \theta = \arctan\left(\frac{x \sin \phi - y \cos \phi}{\cos i\, (x \cos \phi + y \sin \phi)}\right),
@@ -280,19 +285,58 @@ When working with real on-sky data, we must first map the rectilinear on-sky coo
 
 \noindent for $x$ and $y$ center position $x_c$ and $y_c$ and first-order position angle $\phi$. 
 
+In addition to our simplification of rotational modes, we also discretize the coefficients $V_t, V_{2t},$ and $V_{2r}$ by defining them only at specific elliptical radii. We construct radial bins in the plane of the galaxy such that the width of the bin along the minor axis of the galaxy is half of the reconstructed FWHM of the MaNGA PSF, thus Nyquist sampling the changes in velocity along the position angle where they are most compressed.\note{cite something about Nyquist}. The details of the construction are addressed in \ref{sec:fitting}. The magnitude of each individual velocity component is held at zero for the innermost bin edge since we assume that the center of each galaxy is stationary. 
 
-\subsection{Fitting Algorithm}
-
-To fit the above model to the data appropriately, we construct a Bayesian forward model. We choose this formalism rather than a least-squares optimizer like \citep{spekkens07} because of its ability to accurately characterize multimodal posteriors and covariances between parameters.
-
-
-We then construct the prior based off of the information we already have about the galaxy. Using the results from an initial fit using our least-squares axisymmetric fitting algorithm \note{Kyle needs to describe this}, we
-
-using \texttt{dynesty} \citep{dynesty}, a Python package implementing nested sampling \citep{skilling04, skilling06} utilizing multi-ellipsoid bounds \citep{feroz09}. The algorithm for fitting is as follows.
+When evaluating our velocity and dispersion models at a given position $(r, \theta)$, we interpolate between the coefficients using a 1D piece-wise linear interpolation function, allowing us to evaluate the velocity functions at radii between the discrete bins. Once the intrinsic models for velocity and dispersion have been generated, they are convolved with the MaNGA PSF to produce models that match the instrument's observing characteristics and that can be justifiably compared to real data.
 
 
+\subsection{Fitting Algorithm} \label{sec:fitting}
 
-\subsection{Fit Assessments}
+The core function of Nirvana is to represent the input galaxy using the model described above. To fit the above model to the data appropriately, we construct a Bayesian forward model. We choose this formalism rather than a least-squares optimizer like \citep{spekkens07} because of its ability to compensate for local minima in the likelihood, account for covariances between parameters, and utilize priors when navigating probability space. We specifically chose the Bayesian code \texttt{dynesty} \citep{dynesty}, a Python package implementing nested sampling \citep{skilling04, skilling06} utilizing multi-ellipsoid bounds \citep{feroz09}.
+
+After loading the necessary galaxy data and cleaning it as described in \ref{sec:clipping}, we construct the set of elliptical bins on which the model will be defined. We determine the position of the minor axis and inclination of the galaxy using a preliminary axisymmetric fit using the algorithm described in \ref{sec:axisym}. We do not allow the bin width to be larger than the FWHM itself though to prevent bins on highly inclined galaxies from becoming impractically large. Any bins that are comprised of over 75\% masked spaxels are discarded to prevent small numbers of spaxels from having undue influence on the model in galactic outskirts, and any galaxies with 2 or fewer radial bins are discarded for having insufficient spatial resolution. After these steps, we are left with XXXX galaxies (XX\% of the original sample) and the number of radial bins is shown in Figure XX. \note{update}
+
+At this point, the model fitting process can begin in earnest, with the nested sampler evaluating the prior and likelihood functions until convergence is reached for all parameters. 
+
+\subsubsection{Priors} \label{sec:priors}
+In order to keep the fitting process relatively galaxy-agnostic, we endeavored to keep the priors as neutral as possible. We chose a uniform prior over all angles for position angle $\phi$ rather than setting a narrower prior probability distribution based on preliminary axisymmetric fits because we wanted to allow for the possibility that higher order components present in a galaxy would lead to significant biases in the axisymmetric position angle. Similarly, we use a uniform prior over all angles for the second order position angle $\phi_b$ since we do not have any information on the likely orientations of higher order components for any of the galaxies. 
+
+Rather than attempting to construct an informed prior for the individual velocity components based on predicted rotation curve shapes, we instead attempt to be neutral and keep the model as free from parametric models as possible by using uniform priors over a reasonable velocity range. We allow the magnitudes of the individual in-plane velocity components $V_t, V_{2t}$, and $V_{2r}$ to vary between 0 and 400 km/s in each bin. Similarly, the prior on velocity dispersion magnitude $\sigma$ is uniform over 0 to 300 km/s.
+
+We have found that axisymmetric fits are almost always capable of recovering the systemic velocity  well, so we restrict the $V_{sys}$ to be within a 60 km/s-wide uniform window centered on the value returned by the preliminary fit. We also rely on previous fits for the position of the center of the galaxy, restricting the galactic center to be within a 4" square box surrounding the center of the MaNGA bundle. We determined the size of the bounding box by noticing that in preliminary runs, almost all galaxies that had kinematic centers more than 2" from the IFU center were fit incorrectly, and that the results from the fit were improved by restricting the position of the kinematic center. Essentially all isolated galaxies are centered in the MaNGA IFU, \note{check/cite} and galaxies with kinematic centers outside of this bounding box are almost always not isolated or are undergoing a merger, making them unsuitable for kinematic fitting in the first place. 
+
+The most restrictive prior we have placed on the fitting algorithm is on the inclination, which we tie to the photometric inclination using a relatively tight Gaussian prior. We derive the photometric inclination of each galaxy from its elliptical Petrosian axis ratio $q$, as listed in the NASA-Sloan Atlast \citep{blanton11}. We convert this value to a photometric inclination $i_p$ as follows:
+
+\begin{equation}
+    \cos ^2 i_p = \frac{q^2 - q_0^2}{1 - q_0^2},
+\end{equation}
+
+\noindent where $q_0$ is the intrinsic oblateness of the galaxy. We do not have any information on the value of $q_0$ for each individual galaxy, but we know that for the on average, $q_0 \approx 0.15$ for spiral late-type galaxies and $q_0 \approx 0.25$ for early-type galaxies \note{find citation for this, I thought it was Masters 2011 but it doesn't seem like it is}. In an effort to make the code agnostic to galaxy morphology, we choose a nominal value of $q_0 = 0.2$ for all galaxies. 
+
+The Gaussian prior for $i$ is centered on $i_p$ with a standard deviation of $3^\circ$. We chose this comparatively restrictive prior in order to negate some of the biases common in velocity field fitters. Inclination is a difficult parameter to recover correctly since it relies only on the shape of isovelocity contours, often leading to kinematic inclinations that are consistently larger than photometric inclinations \citep[e.g.][and our own axisymmetric model]{andersen2013}. 
+
+We originally applied an uninformed uniform prior but recovered inclinations significantly higher than $i_p$ for wide ranges of galaxies, as seen in the first panel of Figure XX. After switching to a restrictive Gaussian prior, we find significantly less bias, on the order of 3-4$^\circ$, as seen  in the second panel of Figure XX. We determined experimentally that a $3^\circ$ standard deviation on the prior led to the most faithful recovery of input parameters in mocks, as will be discussed in Section \ref{sec:mocks}.
+
+\subsection{Likelihood} \label{sec:likelihood}
+The Nirvana likelihood function is based primarily on a standard chi-squared likelihood. At each step in the fitting process, we generate a velocity field model according to the steps outlined in Section \ref{sec:bisym} using the latest parameter guesses. We then compute a $\chi^2$ value between the original data and the model, weighting each spaxel by its velocity variance $\sigma_v^2$ as reported by the MaNGA DAP, summing over all spaxels to obtain one value for the whole galaxy:
+
+\begin{equation} \label{chisq}
+    \chi^2 = \sum_{spaxels} \frac{Model - Data}{\sigma_v^2}.
+\end{equation}
+
+On top of this basic $\chi^2$ value, we also add penalties to make the results more physical. In order to incentivize the model to produce smoother rotation curves, we impose a penalty if the magnitude second derivative of the rotation curve shape is high for any of the components. We approximate the second derivative by taking the difference between the velocity components in each bin and the mean of the values of the same component in neighboring bins. The smoothing penalty $S$ is the sum of the difference between the mean for all bins and all velocity components, scaled by the magnitude of the velocity component in that bin and weighted by a coefficient  $w$:
+
+\begin{equation} \label{smoothing}
+    S = w \sum_{V_t, V_{2t}, V_{2r}, \sigma} \sum_{i}^{N_{bins}} \frac{V_i - (V_{i-1} + V_{i+1})/2}{V_i}.
+\end{equation}
+
+\noindent We determined experimentally that a weight of $w = 10$ results in fits that fit radial differences in  velocity well but do not contain unphysical oscillations in the shapes of the velocity profiles.
+
+We also impose a penalty on the likelihood for galaxies that too much use of the second order velocity components. We found in preliminary runs that the model often favored using the second order velocity components to fit patterns in the data that could otherwise be explained by a higher inclination. Furthermore, when $V_{2t}$ and $V_{2r}$ are combined with equal magnitudes, they produce a structure in the mode that is identical to $V_t$ leading to the models sometimes choosing to explain the dominant axisymmetric rotation in a galaxy using a combination of the second order components and neglecting the first order component entirely. 
+
+To 
+
+\subsection{Fit Assessments} \label{sec:mocks}
 
 \section{Results}
 
@@ -335,7 +379,7 @@ Participation Group, Universidad Nacional Aut\'onoma de M\'exico,
 University of Arizona, University of Colorado Boulder, University of
 Oxford, University of Portsmouth, University of Utah, University of
 Virginia, University of Washington, University of Wisconsin, Vanderbilt
-University, and Yale University.
+University, and Yale University. 
 
 %\appendix
 %
